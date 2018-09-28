@@ -1,18 +1,49 @@
 section     .data
-msg     db  'Hello, world!',0xa                 ;our dear string
-len     equ $ - msg                             ;length of our dear string
 
-section     .text
-global      _start                              ;must be declared for linker (ld)
+intro db  '7612 Asn 1',0xa
+introlen     equ $ - intro
 
-_start:                                         ;tell linker entry point
+intprompt db 'Please enter a number: '
+intpromptlen equ $ - intprompt
 
-    mov     edx,len                             ;message length
-    mov     ecx,msg                             ;message to write
-    mov     ebx,1                               ;file descriptor (stdout)
-    mov     eax,4                               ;system call number (sys_write)
-    int     0x80                                ;call kernel
+section .text
+global _start
 
-    mov     eax,1                               ;system call number (sys_exit)
-    int     0x80                                ;call kernel
+print:
+    push rbp
+    mov rbp, rsp
+
+    mov rcx, [rsp + 4]
+    mov rdx, [rsp + 8]
+
+    mov rax, 4
+    mov rbx, 1
+    syscall
+
+    pop rbp
+    ret
+
+getinput:
+    push rbp
+    mov rbp, rsp
+
+    push intprompt
+    push intpromptlen
+    call print
+
+    pop rbp
+    ret
+
+_start:
+    mov rax, 1
+    syscall
+
+    ;push intro
+    ;push introlen
+    ;call print
+
+    ;call getinput
+    ;call exit
+
+
 

@@ -1,49 +1,70 @@
+;constants
+
+SYS_EXIT  equ 1
+SYS_WRITE equ 4
+SYS_READ  equ 3
+
+STDIN     equ 0
+STDOUT    equ 1
+STDERR    equ 2
+
 section     .data
 
-intro db  '7612 Asn 1',0xa
-introlen     equ $ - intro
+intro        db '7612 Asn 1',0xa,0
+introlen     equ $-intro
 
-intprompt db 'Please enter a number: '
-intpromptlen equ $ - intprompt
+intprompt    db 'Please enter a number: '
+intpromptlen equ $-intprompt
+
+
+section .bss
+
+buff resb 6
 
 section .text
 global _start
 
-print:
-    push rbp
-    mov rbp, rsp
-
-    mov rcx, [rsp + 4]
-    mov rdx, [rsp + 8]
-
-    mov rax, 4
-    mov rbx, 1
-    syscall
-
-    pop rbp
-    ret
-
-getinput:
-    push rbp
-    mov rbp, rsp
-
-    push intprompt
-    push intpromptlen
-    call print
-
-    pop rbp
-    ret
 
 _start:
-    mov rax, 1
-    syscall
+    push introlen
+    push intro
+    call print
 
-    ;push intro
-    ;push introlen
-    ;call print
+    call getinput
 
-    ;call getinput
-    ;call exit
+    jmp exit
 
 
+print:
+    push ebp
+    mov ebp, esp
+
+    mov ecx, [ebp + 8]
+    mov edx, [ebp + 12]
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    int 0x80
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+
+getinput:
+    push ebp
+    mov ebp, esp
+
+    push intpromptlen
+    push intprompt
+    call print
+
+    mov esp, ebp
+    pop ebp
+    ret
+
+exit:
+    mov eax, SYS_EXIT
+    xor ebx, ebx
+    int 0x80
 

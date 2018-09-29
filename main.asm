@@ -10,14 +10,28 @@ STDERR    equ 2
 
 section     .data
 
-intro db '7612 Asn 1',0xa,0
+intro db '7612 Asn 1',0xa,'Number order: nvalue, val1, val2, val3',0xa
 introlen equ $-intro
 
 intprompt db 'Please enter a number: '
 intpromptlen equ $-intprompt
 
-errprompt db 'Only numbers between 0 and 65535 allowed',0xa,0
-errpromptlen equ $-errprompt
+pcase0 db 'Case 0: '
+pcase0len equ $-pcase0
+pcase1 db 'Case 1: '
+pcase1len equ $-pcase1
+pcase2 db 'Case 2: '
+pcase2len equ $-pcase2
+pcase3 db 'Case 3: '
+pcase3len equ $-pcase3
+pcasedefault db 'Case 3: '
+pcasedefaultlen equ $-pcasedefault
+
+errinval db 'Invalid input detected',0xa
+errinvallen equ $-errinval
+
+errrange db 'Only numbers between 0 and 65535 allowed in values',0xa
+errrangelen equ $-errrange
 
 divisorTable:
     dd 1000000000
@@ -34,9 +48,15 @@ divisorTable:
 
 section .bss
 
-buff resb 7
-temp resb 2
-len resw 1
+buff resb 11
+
+temp resb 1
+
+nvalue resd 1
+val1 resd 1
+val2 resd 1
+val3 resd 1
+
 
 section .text
 global _start
@@ -46,15 +66,81 @@ _start:
     push intro
     call print
 
+    ;get nvalue
     call getinput
+    mov [nvalue], eax
 
-    ;input value already in eax
+    ;get and bounds check val1-3
+    call getinput
+    mov [val1], eax
+    cmp eax, 0xffff
+    jg eerrrange
+    cmp eax, 0
+    jl eerrrange
+
+    call getinput
+    mov [val2], eax
+    cmp eax, 0xffff
+    jg eerrrange
+    cmp eax, 0
+    jl eerrrange
+
+    call getinput
+    mov [val3], eax
+    cmp eax, 0xffff
+    jg eerrrange
+    cmp eax, 0
+    jl eerrrange
+
+    mov eax, [nvalue]
+    inc eax; ++nvalue
+
+    cmp eax, 0 ;case0
+    je case0
+    cmp eax, 1 ;case1
+    je case1
+    cmp eax, 2 ;case2
+    je case2
+    cmp eax, 3 ;case3
+    je case3
+    jmp casedefault;default
+
+case0:
+    push pcase0len
+    push pcase0
+    call print
+    mov eax, [val1]
+    imul eax, [val2]
     call print_num
-
-    ;newline for a cleaner terminal
-    mov eax, 0xa
-    call print_char
-
+    jmp exit
+case1:
+    push pcase1len
+    push pcase1
+    call print
+    mov eax, [val2]
+    imul eax, [val3]
+    call print_num
+    jmp exit
+case2:
+    push pcase2len
+    push pcase2
+    call print
+    mov eax, [val3]
+    sub eax, [val1]
+    call print_num
+    jmp exit
+case3:
+    push pcase3len
+    push pcase3
+    call print
+    mov eax, [val1]
+    sub eax, [val3]
+    call print_num
+    jmp exit
+casedefault:
+    push pcasedefaultlen
+    push pcasedefault
+    call print
     jmp exit
 
 
@@ -85,16 +171,16 @@ getinput:
     mov eax, SYS_READ
     mov ebx, STDIN
     mov ecx, buff
-    mov edx, 7
+    mov edx, 11
     int 0x80
     ;eax has length
 
     ;too long,
-    cmp eax, 7
-    je errout
+    cmp eax, 11
+    je eerrinval
     ;too short
     cmp eax, 1
-    je errout
+    je eerrinval
 
     ;its terminated by \n
     mov edi, buff
@@ -113,7 +199,6 @@ print_char:
 
 
     mov [temp], eax
-    mov [temp+1],byte 0
     mov ecx, temp
 
     mov eax, SYS_WRITE
@@ -169,8 +254,6 @@ print_num:
     ret
 
 atoi:
-    ;start at zero
-    ;assume not negative to start
     xor eax, eax
     push eax
     movzx esi, byte [edi]
@@ -180,27 +263,25 @@ atoi:
     ;is it actually just empty
     cmp esi, 0xa
     je .at_done
-    ;yes
+    ;-
     pop eax
     mov eax, -1
     push eax
     xor eax, eax
     inc edi
-    ;no
+    ;+
 .at_convert:
     ;next char
     movzx esi, byte [edi]
     ;check for \n
     cmp esi, 0xa
     je .at_done
-
     ;less than '0' is invalid
     cmp esi, 48
-    jl errout
-
+    jl eerrinval
     ;greater than '9' is invalid
     cmp esi, 57
-    jg errout
+    jg eerrinval
 
     ;convert to actual number
     sub esi, 48
@@ -223,11 +304,20 @@ atoi:
     ;return total
     ret
 
-errout:
-    push errpromptlen
-    push errprompt
+eerrinval:
+    push errinvallen
+    push errinval
+    call print
+    jmp exit
+eerrrange:
+    push errrangelen
+    push errrange
     call print
 exit:
+    ;newline for a cleaner terminal after
+    mov eax, 0xa
+    call print_char
+
     mov eax, SYS_EXIT
     xor ebx, ebx
     int 0x80

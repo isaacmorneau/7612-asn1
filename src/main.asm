@@ -25,7 +25,7 @@ pcase2 db 'Case 2: '
 pcase2len equ $-pcase2
 pcase3 db 'Case 3: '
 pcase3len equ $-pcase3
-pcasedefault db 'Case 3: '
+pcasedefault db 'Default'
 pcasedefaultlen equ $-pcasedefault
 
 errinval db 'Invalid input detected',0xa

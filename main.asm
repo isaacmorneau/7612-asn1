@@ -19,10 +19,24 @@ intpromptlen equ $-intprompt
 errprompt db 'Only numbers between 0 and 65535 allowed',0xa,0
 errpromptlen equ $-errprompt
 
+divisorTable:
+    dd 1000000000
+    dd 100000000
+    dd 10000000
+    dd 1000000
+    dd 100000
+    dd 10000
+    dd 1000
+    dd 100
+    dd 10
+    dd 1
+    dd 0
+
 section .bss
 
 buff resb 7
-len resb 1
+temp resb 2
+len resw 1
 
 section .text
 global _start
@@ -34,13 +48,12 @@ _start:
 
     call getinput
 
-    mov edi, buff
     ;input value already in eax
-    call itoa
+    call print_num
 
-    push eax
-    push buff
-    call print
+    ;newline for a cleaner terminal
+    mov eax, 0xa
+    call print_char
 
     jmp exit
 
@@ -58,7 +71,7 @@ print:
 
     mov esp, ebp
     pop ebp
-    ret
+    ret 8
 
 
 getinput:
@@ -92,112 +105,86 @@ getinput:
     pop ebp
     ret
 
+print_char:
+    push eax
+    push ebx
+    push ecx
+    push edx
 
-itoa:
-    ;start at... something
-    ;next char
-    mov edx, 5
-    ;start at the end of the buffer
-    add edi, 5
 
-    ;check if its negative
+    mov [temp], eax
+    mov [temp+1],byte 0
+    mov ecx, temp
+
+    mov eax, SYS_WRITE
+    mov ebx, STDOUT
+    mov edx, 1
+    int 0x80
+
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    ret
+
+;adapted from https://stackoverflow.com/a/13523734, thanks Brendan
+print_num:
+    push eax
+    push ebx
+    push ecx
+    push edx
+    mov ebx,divisorTable
+    ;start flag as supressing leading zeros
+    mov ecx, 0
+.next_digit:
+    xor edx,edx          ;edx:eax = number
+    div dword [ebx]      ;eax = quotient, edx = remainder
+    ;if 1 keep all chars
+    cmp ecx, 1
+    je .keep_char
     cmp eax, 0
-    jge it_digits
-
-    ;start one higher for - sign at the end
-    inc edi
-    inc edx
-    ; add a negative sign
-
-
-it_digits:
-    cmp eax, 10000
-    jge it_5
-    dec edi
-    dec edx
-    cmp eax, 1000
-    jge it_4
-    dec edi
-    dec edx
-    cmp eax, 100
-    jge it_3
-    dec edi
-    dec edx
-    cmp eax, 10
-    jge it_2
-    dec edi
-    dec edx
-    cmp eax, 0
-    jge it_1
-    jmp errout
-
-it_5:
-    push edx
-    mov edx, 0
-    ;eax already is number to devide
-    mov ecx, 10
-    idiv ecx
-    ;convert digit to printable
-    add edx, 48
-    mov [edi], edx
-    dec edi
+    je .sub_zero
+    ;if we're here its the first non leading zero
+    mov ecx, 1
+.keep_char:
+    add eax,'0'
+    call print_char
+.sub_zero:
+    mov eax,edx          ;eax = remainder
+    add ebx,4            ;ebx = address of next divisor
+    cmp dword [ebx],0    ;Have all divisors been done?
+    jne .next_digit
     pop edx
-it_4:
-    push edx
-    mov edx, 0
-    ;eax already is number to devide
-    mov ecx, 10
-    idiv ecx
-    ;convert digit to printable
-    add edx, 48
-    mov [edi], edx
-    dec edi
-    pop edx
-it_3:
-    push edx
-    mov edx, 0
-    ;eax already is number to devide
-    mov ecx, 10
-    idiv ecx
-    ;convert digit to printable
-    add edx, 48
-    mov [edi], edx
-    dec edi
-    pop edx
-it_2:
-    push edx
-    mov edx, 0
-    ;eax already is number to devide
-    mov ecx, 10
-    idiv ecx
-    ;convert digit to printable
-    add edx, 48
-    mov [edi], edx
-    dec edi
-    pop edx
-it_1:
-    push edx
-    mov edx, 0
-    ;eax already is number to devide
-    mov ecx, 10
-    idiv ecx
-    ;convert digit to printable
-    add edx, 48
-    mov [edi], edx
-
-    ;pop edx into eax as its how long this string is
+    pop ecx
+    pop ebx
     pop eax
     ret
 
 atoi:
     ;start at zero
-    mov eax, 0
-at_convert:
+    ;assume not negative to start
+    xor eax, eax
+    push eax
+    movzx esi, byte [edi]
+    ;is it a negative
+    cmp esi, 45
+    jne .at_convert
+    ;is it actually just empty
+    cmp esi, 0xa
+    je .at_done
+    ;yes
+    pop eax
+    mov eax, -1
+    push eax
+    xor eax, eax
+    inc edi
+    ;no
+.at_convert:
     ;next char
     movzx esi, byte [edi]
     ;check for \n
     cmp esi, 0xa
-    je at_done
+    je .at_done
 
     ;less than '0' is invalid
     cmp esi, 48
@@ -216,8 +203,15 @@ at_convert:
 
     ;get address of next char
     inc edi
-    jmp at_convert
-at_done:
+    jmp .at_convert
+.at_done:
+    ;handle negative
+    pop ebx
+    test ebx, ebx
+    je .at_over
+    ;make sure to set it to negative if the flag was set
+    neg eax
+.at_over:
     ;return total
     ret
 

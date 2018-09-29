@@ -1,5 +1,6 @@
+;Isaac Morneau
+;A00958405
 ;constants
-
 SYS_EXIT  equ 1
 SYS_WRITE equ 4
 SYS_READ  equ 3
@@ -49,14 +50,11 @@ divisorTable:
 section .bss
 
 buff resb 11
-
 temp resb 1
-
 nvalue resd 1
 val1 resd 1
 val2 resd 1
 val3 resd 1
-
 
 section .text
 global _start
@@ -105,6 +103,7 @@ _start:
     je case3
     jmp casedefault;default
 
+;switch
 case0:
     push pcase0len
     push pcase0
@@ -143,7 +142,7 @@ casedefault:
     call print
     jmp exit
 
-
+;print out a string with the length and string pushed to the stack
 print:
     push ebp
     mov ebp, esp
@@ -159,7 +158,7 @@ print:
     pop ebp
     ret 8
 
-
+;read input into a buffer and convert it to an int
 getinput:
     push ebp
     mov ebp, esp
@@ -191,6 +190,7 @@ getinput:
     pop ebp
     ret
 
+;print the char in eax
 print_char:
     push eax
     push ebx
@@ -213,6 +213,7 @@ print_char:
     ret
 
 ;adapted from https://stackoverflow.com/a/13523734, thanks Brendan
+;print the char in eax
 print_num:
     push eax
     push ebx
@@ -253,6 +254,7 @@ print_num:
     pop eax
     ret
 
+;convert edi to an int and return it in eax
 atoi:
     xor eax, eax
     push eax
@@ -304,15 +306,18 @@ atoi:
     ;return total
     ret
 
+;input was fatally incorrect
 eerrinval:
     push errinvallen
     push errinval
     call print
     jmp exit
+;input failed bounds check
 eerrrange:
     push errrangelen
     push errrange
     call print
+;cleanly exit
 exit:
     ;newline for a cleaner terminal after
     mov eax, 0xa

@@ -136,6 +136,14 @@ print_num:
     mov ebx,divisorTable
     ;start flag as supressing leading zeros
     mov ecx, 0
+    cmp eax, 0
+    jge .next_digit
+    ;handle printing negatives
+    push eax
+    mov eax, 0x2d
+    call print_char
+    pop eax
+    neg eax
 .next_digit:
     xor edx,edx          ;edx:eax = number
     div dword [ebx]      ;eax = quotient, edx = remainder
